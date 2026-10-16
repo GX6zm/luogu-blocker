@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      3.3
-// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
+// @version      3.4
+// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
-// @grant        GM_registerMenuCommand
 // @run-at       document-start
 // @homepageURL  https://github.com/GX6zm/luogu-blocker
 // @supportURL   https://github.com/GX6zm/luogu-blocker/issues
@@ -43,7 +42,6 @@
     blockSolutionPage();
 
     // ========== 2. 通用 CSS ==========
-    // CSS 无法用变量做白名单，所以用 :not([href*="142324"]) 显式排除
     const style = document.createElement('style');
     style.textContent = `
         a[href="/discuss"]:not([href*="142324"]),
@@ -197,191 +195,7 @@
         for (const el of starts) hideOneCard(el);
     }
 
-    // ========== 6. 按钩子等级染色用户名 ==========
-    function setupHookColors() {
-        const ENABLE_KEY = 'lg_hook_color_enabled';
-        let enabled = localStorage.getItem(ENABLE_KEY) !== '0';
-
-        const hookStyle = document.createElement('style');
-        hookStyle.id = 'lg-hook-color-style';
-        hookStyle.textContent = `
-            a[href^="/user/"].hook-green {
-                background: linear-gradient(90deg, #2ecc71, #a8e6cf, #2ecc71);
-                background-size: 200% auto;
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                color: transparent;
-                font-weight: 600;
-                animation: lg-hook-green-flow 3s linear infinite;
-            }
-            a[href^="/user/"].hook-blue {
-                background: linear-gradient(90deg, #3498db, #a9cce3, #3498db);
-                background-size: 200% auto;
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                color: transparent;
-                font-weight: 700;
-                animation: lg-hook-blue-pulse 2s ease-in-out infinite;
-            }
-            a[href^="/user/"].hook-gold {
-                background: linear-gradient(90deg, #f1c40f, #fff8b0, #f39c12, #fff8b0, #f1c40f);
-                background-size: 300% auto;
-                -webkit-background-clip: text;
-                background-clip: text;
-                -webkit-text-fill-color: transparent;
-                color: transparent;
-                font-weight: 800;
-                animation: lg-hook-gold-shine 5s linear infinite;
-                text-shadow: 0 0 8px rgba(241, 196, 15, 0.6);
-            }
-            @keyframes lg-hook-green-flow {
-                0%   { background-position: 0% center; }
-                100% { background-position: 200% center; }
-            }
-            @keyframes lg-hook-blue-pulse {
-                0%, 100% { opacity: 1; }
-                50%      { opacity: 0.75; }
-            }
-            @keyframes lg-hook-gold-shine {
-                0%   { background-position: 0% center; }
-                100% { background-position: 300% center; }
-            }
-        `;
-
-        function injectHookStyle() {
-            if (document.head && enabled && !document.getElementById('lg-hook-color-style')) {
-                document.head.appendChild(hookStyle);
-            }
-        }
-        function removeHookStyle() {
-            const s = document.getElementById('lg-hook-color-style');
-            if (s) s.remove();
-            document.querySelectorAll('a.hook-green, a.hook-blue, a.hook-gold').forEach(function(el) {
-                el.classList.remove('hook-green', 'hook-blue', 'hook-gold');
-            });
-        }
-
-        function parseUidToCcfLevel() {
-            const script = document.getElementById('lentille-context');
-            if (!script) return null;
-            try {
-                const data = JSON.parse(script.textContent);
-                const users = data && data.data && data.data.users && data.data.users.result;
-                if (!Array.isArray(users)) return null;
-                const map = {};
-                users.forEach(function(u) {
-                    if (u && typeof u.uid !== 'undefined') {
-                        map[String(u.uid)] = u.ccfLevel || 0;
-                    }
-                });
-                return map;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function svgFillToLevel(fill) {
-            if (!fill) return 0;
-            const c = fill.toLowerCase().trim();
-            if (c === '#5eb95e') return 3;
-            if (c === '#3498db') return 6;
-            if (c === '#f1c40f' || c === '#f39c12' ||
-                c === '#ffd700' || c === '#fbc531' ||
-                c === '#e67e22' || c === '#ffc107') return 9;
-            return 0;
-        }
-
-        function getDomHookLevel(userLinkEl) {
-            let sib = userLinkEl.nextElementSibling;
-            let hops = 0;
-            while (sib && hops < 4) {
-                if (sib.tagName === 'A' && sib.classList.contains('sb_amazeui')) {
-                    const svg = sib.querySelector('svg[fill]');
-                    if (svg) return svgFillToLevel(svg.getAttribute('fill'));
-                }
-                sib = sib.nextElementSibling;
-                hops++;
-            }
-            let scope = userLinkEl.parentElement;
-            let depth = 0;
-            while (scope && scope !== document.body && depth < 3) {
-                const hookA = scope.querySelector('a.sb_amazeui svg[fill]');
-                if (hookA) return svgFillToLevel(hookA.getAttribute('fill'));
-                scope = scope.parentElement;
-                depth++;
-            }
-            return 0;
-        }
-
-        function levelToClass(level) {
-            if (level >= 8) return 'hook-gold';
-            if (level >= 6) return 'hook-blue';
-            if (level >= 1) return 'hook-green';
-            return null;
-        }
-
-        function runHookColors() {
-            if (!enabled) return;
-            if (!document.body) return;
-
-            injectHookStyle();
-
-            const isFollowingPage = /\/user\/[^/]+\/(following|follow)/.test(window.location.pathname);
-            const uidMap = isFollowingPage ? parseUidToCcfLevel() : null;
-
-            document.querySelectorAll('a[href^="/user/"]').forEach(function(a) {
-                const text = (a.textContent || '').trim();
-                if (!text) return;
-
-                let level = 0;
-                let matched = false;
-
-                if (uidMap) {
-                    const m = (a.getAttribute('href') || '').match(/^\/user\/(\d+)/);
-                    if (m && (m[1] in uidMap)) {
-                        level = uidMap[m[1]];
-                        matched = true;
-                    }
-                }
-                if (!matched) {
-                    level = getDomHookLevel(a);
-                    if (level > 0) matched = true;
-                }
-                if (!matched) return;
-
-                const cls = levelToClass(level);
-                if (!cls) return;
-
-                if (a.classList.contains(cls)) return;
-                a.classList.remove('hook-green', 'hook-blue', 'hook-gold');
-                a.classList.add(cls);
-            });
-        }
-
-        if (typeof GM_registerMenuCommand === 'function') {
-            GM_registerMenuCommand('切换：钩子染色', function() {
-                enabled = !enabled;
-                localStorage.setItem(ENABLE_KEY, enabled ? '1' : '0');
-                if (enabled) {
-                    injectHookStyle();
-                    runHookColors();
-                } else {
-                    removeHookStyle();
-                }
-            });
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', runHookColors);
-        } else {
-            runHookColors();
-        }
-        new MutationObserver(runHookColors).observe(document.body, { childList: true, subtree: true });
-    }
-
-    // ========== 7. 统一调度 ==========
+    // ========== 6. 统一调度 ==========
     function runAll() {
         document.querySelectorAll('a[href*="/discuss"]').forEach(function(el) {
             // 犇犇不动
@@ -406,9 +220,7 @@
         startObserver();
     }
 
-    setupHookColors();
-
-    // ========== 8. 点击拦截 ==========
+    // ========== 7. 点击拦截 ==========
     document.addEventListener('click', function(e) {
         const link = e.target.closest('a');
         if (!link || !link.href) return;
