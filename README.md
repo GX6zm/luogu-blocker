@@ -93,7 +93,3 @@
 欢迎提交 Issue 或 Pull Request。
 
 如果洛谷页面结构发生变化，可以在浏览器控制台检查对应元素，并更新脚本中的选择器。
-
-## 许可证
-
-本项目使用 MIT License，详见 [LICENSE](LICENSE)。
