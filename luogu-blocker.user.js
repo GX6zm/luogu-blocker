@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      3.2
+// @version      3.3
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -16,6 +16,13 @@
 
 (function() {
     'use strict';
+
+    // 讨论链接白名单：这些链接不隐藏、不拦截
+    // /discuss/142324 与 /discuss/show/142324 是钩子等级说明帖
+    function isWhitelistedDiscuss(href) {
+        if (!href) return false;
+        return /\/discuss\/(show\/)?142324(\b|$|\/|\?)/.test(href);
+    }
 
     // ========== 1. 屏蔽题解页面 ==========
     function blockSolutionPage() {
@@ -36,11 +43,12 @@
     blockSolutionPage();
 
     // ========== 2. 通用 CSS ==========
+    // CSS 无法用变量做白名单，所以用 :not([href*="142324"]) 显式排除
     const style = document.createElement('style');
     style.textContent = `
-        a[href="/discuss"],
-        a[href^="/discuss/"],
-        a[href="/discuss/latest"] { display: none !important; }
+        a[href="/discuss"]:not([href*="142324"]),
+        a[href^="/discuss/"]:not([href*="142324"]),
+        a[href="/discuss/latest"]:not([href*="142324"]) { display: none !important; }
 
         .lg-article .tags,
         .lg-article .tag-list { display: none !important; }
@@ -376,7 +384,10 @@
     // ========== 7. 统一调度 ==========
     function runAll() {
         document.querySelectorAll('a[href*="/discuss"]').forEach(function(el) {
+            // 犇犇不动
             if (el.href && el.href.includes('/benben')) return;
+            // 白名单：钩子说明帖不隐藏
+            if (isWhitelistedDiscuss(el.getAttribute('href'))) return;
             el.style.display = 'none';
         });
         hideRecentDiscussBlock();
@@ -402,6 +413,8 @@
         const link = e.target.closest('a');
         if (!link || !link.href) return;
         if (link.href.includes('/benben')) return;
+        // 白名单：钩子说明帖放行
+        if (isWhitelistedDiscuss(link.getAttribute('href'))) return;
         if (link.href.includes('/discuss')) {
             e.preventDefault(); e.stopPropagation(); return false;
         }
