@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      3.1
+// @version      3.2
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -225,7 +225,7 @@
                 -webkit-text-fill-color: transparent;
                 color: transparent;
                 font-weight: 800;
-                animation: lg-hook-gold-shine 2.5s linear infinite;
+                animation: lg-hook-gold-shine 5s linear infinite;
                 text-shadow: 0 0 8px rgba(241, 196, 15, 0.6);
             }
             @keyframes lg-hook-green-flow {
