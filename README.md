@@ -25,7 +25,7 @@
 
 点击下方链接，Tampermonkey 会弹出安装页面：
 
-[安装脚本](https://raw.githubusercontent.com/你的用户名/你的仓库/main/luogu-blocker.user.js)
+[安装脚本](https://raw.githubusercontent.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js)
 
 ### 手动安装
 
@@ -69,7 +69,7 @@
 
 ### 2. 为什么保留犇犇？
 
-犇犇是洛谷的短动态功能，不属于传统讨论区，因此脚本默认保留。
+颓废喵。
 
 ### 3. 会影响正常做题吗？
 
