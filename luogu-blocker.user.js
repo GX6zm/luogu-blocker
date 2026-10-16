@@ -1,12 +1,17 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/GX6zm/luogu-blocker
 // @version      1.9
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面（保留犇犇）
-// @author       You
+// @author       GX6zm
 // @match        https://www.luogu.com.cn/*
 // @grant        none
 // @run-at       document-start
+// @homepageURL  https://github.com/GX6zm/luogu-blocker
+// @supportURL   https://github.com/GX6zm/luogu-blocker/issues
+// @updateURL    https://github.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
+// @downloadURL  https://github.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
+// @license      MIT
 // ==/UserScript==
 
 (function() {
