@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      2.9
+// @version      3.0
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -198,9 +198,9 @@
         hookStyle.id = 'lg-hook-color-style';
         // 设计要点：
         //   ① 渐变配色与 v2.0 完全一致（绿 #2ecc71/#a8e6cf，蓝 #3498db/#a9cce3，金 #f1c40f/#fff8b0/#f39c12）
-        //   ② 靠 -webkit-text-stroke 给每个字加 0.5px 同色系深色描边，解决浅色段可读性
-        //   ③ stroke 是独立渲染层，不受 background-clip: text 裁剪影响
-        //   ④ 选择器用 html body a[href^="/user/"]，特异性 (0,3,2)，能压过 lg-fg-xxx
+        //   ② 用"向下偏移的柔和投影"（同色系深色、模糊 2px）解决浅色段可读性
+        //      投影只在下方，看起来像文字浮起，不是硬描边
+        //   ③ 深色段时投影被文字盖住，几乎看不到；浅色段时投影提供暗色轮廓
         hookStyle.textContent = `
             /* ============ 绿钩：翡翠流光 ============ */
             html body a[href^="/user/"].hook-green,
@@ -213,7 +213,7 @@
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
                 font-weight: 600 !important;
-                -webkit-text-stroke: 0.5px rgba(8, 80, 35, 0.9) !important;
+                text-shadow: 0 1px 2px rgba(8, 80, 35, 0.55) !important;
                 animation: lg-hook-green-flow 3s linear infinite !important;
             }
 
@@ -228,7 +228,7 @@
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
                 font-weight: 700 !important;
-                -webkit-text-stroke: 0.5px rgba(8, 45, 110, 0.9) !important;
+                text-shadow: 0 1px 2px rgba(8, 45, 110, 0.55) !important;
                 animation: lg-hook-blue-flow 3s linear infinite !important;
             }
 
@@ -243,7 +243,7 @@
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
                 font-weight: 800 !important;
-                -webkit-text-stroke: 0.5px rgba(110, 70, 0, 0.9) !important;
+                text-shadow: 0 1px 2px rgba(110, 70, 0, 0.55) !important;
                 animation: lg-hook-gold-flow 2.5s linear infinite !important;
             }
 
