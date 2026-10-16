@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      2.8
+// @version      2.9
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -196,31 +196,24 @@
 
         const hookStyle = document.createElement('style');
         hookStyle.id = 'lg-hook-color-style';
-        // 色标设计：
-        //   绿钩：#2ecc71（亮翡翠） ↔ #0a5c2a（同色系深绿）—— 保留原来的绿色色相
-        //   蓝钩：#40a0ff（亮蓝）   ↔ #0a3d91（同色系深蓝）
-        //   金钩：#f1c40f（亮金）   ↔ #a06a00（同色系深金）—— 保留原来的金色色相
-        // 只用同色系深/亮两端，不掺接近白的色标，保证任何时刻都能看清
+        // 设计要点：
+        //   ① 渐变配色与 v2.0 完全一致（绿 #2ecc71/#a8e6cf，蓝 #3498db/#a9cce3，金 #f1c40f/#fff8b0/#f39c12）
+        //   ② 靠 -webkit-text-stroke 给每个字加 0.5px 同色系深色描边，解决浅色段可读性
+        //   ③ stroke 是独立渲染层，不受 background-clip: text 裁剪影响
+        //   ④ 选择器用 html body a[href^="/user/"]，特异性 (0,3,2)，能压过 lg-fg-xxx
         hookStyle.textContent = `
             /* ============ 绿钩：翡翠流光 ============ */
             html body a[href^="/user/"].hook-green,
             html body a[href^="/user/"].hook-green > *,
             html body a[href^="/user/"].hook-green:hover {
-                background: linear-gradient(
-                    90deg,
-                    #2ecc71 0%,
-                    #0a5c2a 25%,
-                    #2ecc71 50%,
-                    #0a5c2a 75%,
-                    #2ecc71 100%
-                ) !important;
-                background-size: 300% auto !important;
+                background: linear-gradient(90deg, #2ecc71, #a8e6cf, #2ecc71) !important;
+                background-size: 200% auto !important;
                 -webkit-background-clip: text !important;
                 background-clip: text !important;
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
-                font-weight: 700 !important;
-                text-shadow: 0 0 1px rgba(10, 92, 42, 0.5) !important;
+                font-weight: 600 !important;
+                -webkit-text-stroke: 0.5px rgba(8, 80, 35, 0.9) !important;
                 animation: lg-hook-green-flow 3s linear infinite !important;
             }
 
@@ -228,21 +221,14 @@
             html body a[href^="/user/"].hook-blue,
             html body a[href^="/user/"].hook-blue > *,
             html body a[href^="/user/"].hook-blue:hover {
-                background: linear-gradient(
-                    90deg,
-                    #40a0ff 0%,
-                    #0a3d91 25%,
-                    #40a0ff 50%,
-                    #0a3d91 75%,
-                    #40a0ff 100%
-                ) !important;
-                background-size: 300% auto !important;
+                background: linear-gradient(90deg, #3498db, #a9cce3, #3498db) !important;
+                background-size: 200% auto !important;
                 -webkit-background-clip: text !important;
                 background-clip: text !important;
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
                 font-weight: 700 !important;
-                text-shadow: 0 0 1px rgba(10, 61, 145, 0.5) !important;
+                -webkit-text-stroke: 0.5px rgba(8, 45, 110, 0.9) !important;
                 animation: lg-hook-blue-flow 3s linear infinite !important;
             }
 
@@ -250,22 +236,15 @@
             html body a[href^="/user/"].hook-gold,
             html body a[href^="/user/"].hook-gold > *,
             html body a[href^="/user/"].hook-gold:hover {
-                background: linear-gradient(
-                    90deg,
-                    #f1c40f 0%,
-                    #a06a00 25%,
-                    #f1c40f 50%,
-                    #a06a00 75%,
-                    #f1c40f 100%
-                ) !important;
+                background: linear-gradient(90deg, #f1c40f, #fff8b0, #f39c12, #fff8b0, #f1c40f) !important;
                 background-size: 300% auto !important;
                 -webkit-background-clip: text !important;
                 background-clip: text !important;
                 -webkit-text-fill-color: transparent !important;
                 color: transparent !important;
                 font-weight: 800 !important;
-                text-shadow: 0 0 1px rgba(160, 106, 0, 0.55) !important;
-                animation: lg-hook-gold-flow 3s linear infinite !important;
+                -webkit-text-stroke: 0.5px rgba(110, 70, 0, 0.9) !important;
+                animation: lg-hook-gold-flow 2.5s linear infinite !important;
             }
 
             @keyframes lg-hook-green-flow {
@@ -278,7 +257,7 @@
             }
             @keyframes lg-hook-gold-flow {
                 0%   { background-position: 0% center; }
-                100% { background-position: 200% center; }
+                100% { background-position: 300% center; }
             }
         `;
 
