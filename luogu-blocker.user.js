@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      2.2
-// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染关注列表用户名（保留犇犇）
+// @version      2.3
+// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
 // @grant        GM_registerMenuCommand
@@ -38,12 +38,10 @@
     // ========== 2. 通用 CSS ==========
     const style = document.createElement('style');
     style.textContent = `
-        /* 隐藏所有指向讨论区的链接，不动 /benben */
         a[href="/discuss"],
         a[href^="/discuss/"],
         a[href="/discuss/latest"] { display: none !important; }
 
-        /* 题目页算法标签的 CSS 兜底 */
         .lg-article .tags,
         .lg-article .tag-list { display: none !important; }
     `;
@@ -61,7 +59,7 @@
     }
     injectStyle();
 
-    // ========== 3. 隐藏主页"最近讨论"整个板块（保留犇犇） ==========
+    // ========== 3. 隐藏主页"最近讨论" ==========
     function hideRecentDiscussBlock() {
         if (window.location.pathname !== '/') return;
 
@@ -99,7 +97,7 @@
         }
     }
 
-    // ========== 4. 隐藏题目页的算法标签 ==========
+    // ========== 4. 隐藏题目页算法标签 ==========
     function hideProblemTags() {
         if (!/^\/problem\/[^/]+\/?$/.test(window.location.pathname)) return;
 
@@ -133,11 +131,10 @@
         }
     }
 
-    // ========== 5. 隐藏题目页"相关讨论"卡片（含空外框） ==========
+    // ========== 5. 隐藏题目页"相关讨论" ==========
     function hideOneCard(startEl) {
         if (!startEl || startEl.dataset.lgRdHidden) return;
 
-        // 5.1 优先按类名匹配
         let cur = startEl;
         while (cur && cur !== document.body) {
             const cls = (typeof cur.className === 'string' ? cur.className : '') || '';
@@ -150,7 +147,6 @@
             cur = cur.parentElement;
         }
 
-        // 5.2 启发式：父级里只有它一个"有内容"的子节点就继续往上
         let target = startEl;
         for (let i = 0; i < 4; i++) {
             const parent = target.parentElement;
@@ -193,22 +189,21 @@
         for (const el of starts) hideOneCard(el);
     }
 
-    // ========== 6. 关注列表按钩子等级染色（基于 lentille-context JSON） ==========
-    // 洛谷关注列表页把数据直接嵌在 <script id="lentille-context"> 的 JSON 里，
-    // 每个用户对象都带 ccfLevel 字段：
-    //   0       → 无钩
-    //   1~5     → 绿钩
-    //   6~7     → 蓝钩
-    //   8~10    → 金钩
-    function setupFollowingHookColors() {
-        const RAINBOW_KEY = 'lg_hook_color_enabled';
-        let enabled = localStorage.getItem(RAINBOW_KEY) !== '0';
+    // ========== 6. 按钩子等级染色用户名 ==========
+    // 两个数据源：
+    //   ① 关注列表页：#lentille-context JSON 里的 data.users.result[i].ccfLevel
+    //   ② 首页等页面：用户名链接后面跟着 <a class="sb_amazeui"><svg fill="#xxxxxx">
+    // 等级映射：
+    //   ccfLevel: 0=无, 1~5=绿, 6~7=蓝, 8~10=金
+    //   SVG fill: #5eb95e=绿, #3498db=蓝, 其余金黄色=金
+    function setupHookColors() {
+        const ENABLE_KEY = 'lg_hook_color_enabled';
+        let enabled = localStorage.getItem(ENABLE_KEY) !== '0';
 
         const hookStyle = document.createElement('style');
         hookStyle.id = 'lg-hook-color-style';
         hookStyle.textContent = `
-            /* 绿钩：1~5 级 —— 清新流光 */
-            a[href^="/user/"].hook-green {
+            a.hook-green {
                 background: linear-gradient(90deg, #2ecc71, #a8e6cf, #2ecc71);
                 background-size: 200% auto;
                 -webkit-background-clip: text;
@@ -218,8 +213,7 @@
                 font-weight: 600;
                 animation: lg-hook-green-flow 3s linear infinite;
             }
-            /* 蓝钩：6~7 级 —— 深邃脉冲 */
-            a[href^="/user/"].hook-blue {
+            a.hook-blue {
                 background: linear-gradient(90deg, #3498db, #a9cce3, #3498db);
                 background-size: 200% auto;
                 -webkit-background-clip: text;
@@ -229,8 +223,7 @@
                 font-weight: 700;
                 animation: lg-hook-blue-pulse 2s ease-in-out infinite;
             }
-            /* 金钩：8~10 级 —— 闪耀金辉 */
-            a[href^="/user/"].hook-gold {
+            a.hook-gold {
                 background: linear-gradient(90deg, #f1c40f, #fff8b0, #f39c12, #fff8b0, #f1c40f);
                 background-size: 300% auto;
                 -webkit-background-clip: text;
@@ -265,11 +258,10 @@
             if (s) s.remove();
             document.querySelectorAll('a.hook-green, a.hook-blue, a.hook-gold').forEach(function(el) {
                 el.classList.remove('hook-green', 'hook-blue', 'hook-gold');
-                delete el.dataset.lgHookDone;
             });
         }
 
-        // 解析 lentille-context JSON，拿到 uid → ccfLevel 映射
+        // ---- 数据源 ①：关注列表 JSON ----
         function parseUidToCcfLevel() {
             const script = document.getElementById('lentille-context');
             if (!script) return null;
@@ -289,6 +281,44 @@
             }
         }
 
+        // ---- 数据源 ②：DOM 中用户名后紧跟的 svg fill ----
+        function svgFillToLevel(fill) {
+            if (!fill) return 0;
+            const c = fill.toLowerCase().trim();
+            if (c === '#5eb95e') return 3;                                  // 绿钩
+            if (c === '#3498db') return 6;                                  // 蓝钩
+            if (c === '#f1c40f' || c === '#f39c12' ||
+                c === '#ffd700' || c === '#fbc531' ||
+                c === '#e67e22' || c === '#ffc107') return 9;               // 金钩候选
+            return 0;
+        }
+
+        function getDomHookLevel(userLinkEl) {
+            // A. 往后跳最多 4 个兄弟节点，找 <a class="sb_amazeui"> 里的 svg[fill]
+            let sib = userLinkEl.nextElementSibling;
+            let hops = 0;
+            while (sib && hops < 4) {
+                if (sib.tagName === 'A' && sib.classList.contains('sb_amazeui')) {
+                    const svg = sib.querySelector('svg[fill]');
+                    if (svg) return svgFillToLevel(svg.getAttribute('fill'));
+                }
+                sib = sib.nextElementSibling;
+                hops++;
+            }
+            // B. 兜底：在当前元素的父级范围内找第一个 svg[fill]
+            // （有些布局把钩子放在不同结构里）
+            let scope = userLinkEl.parentElement;
+            let depth = 0;
+            while (scope && scope !== document.body && depth < 3) {
+                // 只认 sb_amazeui 里的 svg，避免误捡其他图标
+                const hookA = scope.querySelector('a.sb_amazeui svg[fill]');
+                if (hookA) return svgFillToLevel(hookA.getAttribute('fill'));
+                scope = scope.parentElement;
+                depth++;
+            }
+            return 0;
+        }
+
         function levelToClass(level) {
             if (level >= 8) return 'hook-gold';
             if (level >= 6) return 'hook-blue';
@@ -296,37 +326,59 @@
             return null;
         }
 
+        function applyClass(el, cls) {
+            const had = el.classList.contains(cls);
+            if (had) return;
+            el.classList.remove('hook-green', 'hook-blue', 'hook-gold');
+            if (cls) el.classList.add(cls);
+        }
+
+        // ---- 主流程 ----
         function runHookColors() {
-            // 只在关注列表页执行
-            if (!/\/user\/[^/]+\/(following|follow)/.test(window.location.pathname)) return;
             if (!enabled) return;
+            if (!document.body) return;
 
             injectHookStyle();
 
-            const uidMap = parseUidToCcfLevel();
-            if (!uidMap) return;
+            // 判断页面类型
+            const isFollowingPage = /\/user\/[^/]+\/(following|follow)/.test(window.location.pathname);
+            const uidMap = isFollowingPage ? parseUidToCcfLevel() : null;
 
             document.querySelectorAll('a[href^="/user/"]').forEach(function(a) {
-                const m = (a.getAttribute('href') || '').match(/^\/user\/(\d+)/);
-                if (!m) return;
-                const uid = m[1];
-                if (!(uid in uidMap)) return;
+                // 排除导航栏/菜单里的链接（没有可染色的文本也不算）
+                const text = (a.textContent || '').trim();
+                if (!text) return;
 
-                const cls = levelToClass(uidMap[uid]);
-                if (!cls) return; // 无钩，不加任何效果
+                let level = 0;
+                let matched = false;
 
-                if (a.classList.contains(cls)) return;
-                // 清掉旧的（翻页后同一元素可能被复用）
-                a.classList.remove('hook-green', 'hook-blue', 'hook-gold');
-                a.classList.add(cls);
+                // 优先用 JSON 数据（关注列表页）
+                if (uidMap) {
+                    const m = (a.getAttribute('href') || '').match(/^\/user\/(\d+)/);
+                    if (m && (m[1] in uidMap)) {
+                        level = uidMap[m[1]];
+                        matched = true;
+                    }
+                }
+
+                // 没有 JSON 数据就退回 DOM 钩子检测
+                if (!matched) {
+                    level = getDomHookLevel(a);
+                    if (level > 0) matched = true;
+                }
+
+                if (!matched) return;
+                const cls = levelToClass(level);
+                if (!cls) return;
+                applyClass(a, cls);
             });
         }
 
         // 菜单开关
         if (typeof GM_registerMenuCommand === 'function') {
-            GM_registerMenuCommand('切换：关注列表钩子染色', function() {
+            GM_registerMenuCommand('切换：钩子染色', function() {
                 enabled = !enabled;
-                localStorage.setItem(RAINBOW_KEY, enabled ? '1' : '0');
+                localStorage.setItem(ENABLE_KEY, enabled ? '1' : '0');
                 if (enabled) {
                     injectHookStyle();
                     runHookColors();
@@ -367,8 +419,8 @@
         startObserver();
     }
 
-    // 启动钩子染色模块
-    setupFollowingHookColors();
+    // 启动钩子染色
+    setupHookColors();
 
     // ========== 8. 点击拦截 ==========
     document.addEventListener('click', function(e) {
