@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      2.4
+// @version      2.5
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -196,53 +196,82 @@
 
         const hookStyle = document.createElement('style');
         hookStyle.id = 'lg-hook-color-style';
-        // 全部加 !important，压过洛谷的 lg-fg-xxx / lg-bold 等类名
+        // 设计原则：
+        //   ① 主色固定（color + -webkit-text-fill-color 都设死），任何时刻都清晰
+        //   ② 动画只改 text-shadow 强度，不透明度/颜色整体变化，不影响可读性
+        //   ③ 全加 !important，压过洛谷的 lg-fg-xxx
         hookStyle.textContent = `
+            /* ============ 绿钩：翡翠呼吸 ============ */
             a.hook-green,
+            a.hook-green:hover,
             a.hook-green > * {
-                background: linear-gradient(90deg, #2ecc71, #a8e6cf, #2ecc71) !important;
-                background-size: 200% auto !important;
-                -webkit-background-clip: text !important;
-                background-clip: text !important;
-                -webkit-text-fill-color: transparent !important;
-                color: transparent !important;
+                color: #2ecc71 !important;
+                -webkit-text-fill-color: #2ecc71 !important;
                 font-weight: 600 !important;
-                animation: lg-hook-green-flow 3s linear infinite !important;
+                animation: lg-hook-green-breathe 3.2s ease-in-out infinite !important;
             }
+
+            /* ============ 蓝钩：深海辉光 ============ */
             a.hook-blue,
+            a.hook-blue:hover,
             a.hook-blue > * {
-                background: linear-gradient(90deg, #3498db, #a9cce3, #3498db) !important;
-                background-size: 200% auto !important;
-                -webkit-background-clip: text !important;
-                background-clip: text !important;
-                -webkit-text-fill-color: transparent !important;
-                color: transparent !important;
+                color: #4aa8e8 !important;
+                -webkit-text-fill-color: #4aa8e8 !important;
                 font-weight: 700 !important;
-                animation: lg-hook-blue-pulse 2s ease-in-out infinite !important;
+                animation: lg-hook-blue-breathe 4s ease-in-out infinite !important;
             }
+
+            /* ============ 金钩：鎏金流光 ============ */
             a.hook-gold,
+            a.hook-gold:hover,
             a.hook-gold > * {
-                background: linear-gradient(90deg, #f1c40f, #fff8b0, #f39c12, #fff8b0, #f1c40f) !important;
-                background-size: 300% auto !important;
-                -webkit-background-clip: text !important;
-                background-clip: text !important;
-                -webkit-text-fill-color: transparent !important;
-                color: transparent !important;
+                color: #f5c518 !important;
+                -webkit-text-fill-color: #f5c518 !important;
                 font-weight: 800 !important;
-                animation: lg-hook-gold-shine 2.5s linear infinite !important;
-                text-shadow: 0 0 8px rgba(241, 196, 15, 0.6) !important;
+                animation: lg-hook-gold-breathe 3.5s ease-in-out infinite !important;
             }
-            @keyframes lg-hook-green-flow {
-                0%   { background-position: 0% center; }
-                100% { background-position: 200% center; }
+
+            /* ============ 动画关键帧：仅阴影呼吸，颜色不变 ============ */
+            @keyframes lg-hook-green-breathe {
+                0%, 100% {
+                    text-shadow:
+                        0 0 3px rgba(46, 204, 113, 0.35),
+                        0 0 6px rgba(46, 204, 113, 0.15);
+                }
+                50% {
+                    text-shadow:
+                        0 0 5px rgba(46, 204, 113, 0.75),
+                        0 0 10px rgba(46, 204, 113, 0.45),
+                        0 0 16px rgba(46, 204, 113, 0.20);
+                }
             }
-            @keyframes lg-hook-blue-pulse {
-                0%, 100% { opacity: 1; }
-                50%      { opacity: 0.75; }
+
+            @keyframes lg-hook-blue-breathe {
+                0%, 100% {
+                    text-shadow:
+                        0 0 3px rgba(74, 168, 232, 0.35),
+                        0 0 6px rgba(74, 168, 232, 0.15);
+                }
+                50% {
+                    text-shadow:
+                        0 0 5px rgba(74, 168, 232, 0.75),
+                        0 0 12px rgba(74, 168, 232, 0.45),
+                        0 0 20px rgba(127, 208, 255, 0.25);
+                }
             }
-            @keyframes lg-hook-gold-shine {
-                0%   { background-position: 0% center; }
-                100% { background-position: 300% center; }
+
+            @keyframes lg-hook-gold-breathe {
+                0%, 100% {
+                    text-shadow:
+                        0 0 4px rgba(245, 197, 24, 0.40),
+                        0 0 8px rgba(245, 197, 24, 0.18);
+                }
+                50% {
+                    text-shadow:
+                        0 0 6px rgba(245, 197, 24, 0.85),
+                        0 0 14px rgba(245, 197, 24, 0.50),
+                        0 0 24px rgba(255, 224, 102, 0.28);
+                }
             }
         `;
 
@@ -259,7 +288,6 @@
             });
         }
 
-        // 数据源 ①：关注列表 JSON
         function parseUidToCcfLevel() {
             const script = document.getElementById('lentille-context');
             if (!script) return null;
@@ -279,7 +307,6 @@
             }
         }
 
-        // 数据源 ②：DOM 里用户名后面的 svg fill
         function svgFillToLevel(fill) {
             if (!fill) return 0;
             const c = fill.toLowerCase().trim();
