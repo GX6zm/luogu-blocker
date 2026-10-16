@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      2.6
+// @version      2.7
 // @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
@@ -196,97 +196,89 @@
 
         const hookStyle = document.createElement('style');
         hookStyle.id = 'lg-hook-color-style';
-        // 设计：
-        //   ① 颜色在"深色 ↔ 亮色"之间循环，两端都是高对比度色，任何时刻都看得清
-        //   ② 峰值时叠加多层 text-shadow，光晕明显扩散
-        //   ③ 周期 1.8~2.2s，节奏明快，一眼能看出在动
-        //   ④ 选择器用 html body a[href^="/user/"]，特异性高，压过 lg-fg-xxx
+        // 设计要点：
+        //   ① 只用在同色系「深 ↔ 亮」两端循环的渐变，绝不混接近白的色标 → 任何时刻都看得清
+        //   ② background-size 300% + 5 个色标形成无缝循环
+        //   ③ 选择器用 html body a[href^="/user/"]，特异性够高压过 lg-fg-xxx
+        //   ④ 加 1px 半透明 text-shadow，让细笔画也有边缘
         hookStyle.textContent = `
-            /* ============ 绿钩：翡翠脉动 ============ */
+            /* ============ 绿钩：翡翠流光 ============ */
             html body a[href^="/user/"].hook-green,
             html body a[href^="/user/"].hook-green > *,
             html body a[href^="/user/"].hook-green:hover {
-                color: #0a7a35 !important;
-                -webkit-text-fill-color: #0a7a35 !important;
+                background: linear-gradient(
+                    90deg,
+                    #0a7a35 0%,
+                    #1edc6e 25%,
+                    #0a7a35 50%,
+                    #1edc6e 75%,
+                    #0a7a35 100%
+                ) !important;
+                background-size: 300% auto !important;
+                -webkit-background-clip: text !important;
+                background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                color: transparent !important;
                 font-weight: 700 !important;
-                animation: lg-hook-green-pulse 1.8s ease-in-out infinite !important;
+                text-shadow: 0 0 1px rgba(10, 122, 53, 0.5) !important;
+                animation: lg-hook-green-flow 3s linear infinite !important;
             }
 
-            /* ============ 蓝钩：深海脉冲 ============ */
+            /* ============ 蓝钩：深海流光 ============ */
             html body a[href^="/user/"].hook-blue,
             html body a[href^="/user/"].hook-blue > *,
             html body a[href^="/user/"].hook-blue:hover {
-                color: #0a3d91 !important;
-                -webkit-text-fill-color: #0a3d91 !important;
+                background: linear-gradient(
+                    90deg,
+                    #0a3d91 0%,
+                    #40a0ff 25%,
+                    #0a3d91 50%,
+                    #40a0ff 75%,
+                    #0a3d91 100%
+                ) !important;
+                background-size: 300% auto !important;
+                -webkit-background-clip: text !important;
+                background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                color: transparent !important;
                 font-weight: 700 !important;
-                animation: lg-hook-blue-pulse 2.2s ease-in-out infinite !important;
+                text-shadow: 0 0 1px rgba(10, 61, 145, 0.5) !important;
+                animation: lg-hook-blue-flow 3s linear infinite !important;
             }
 
-            /* ============ 金钩：鎏金脉冲 ============ */
+            /* ============ 金钩：鎏金流光 ============ */
             html body a[href^="/user/"].hook-gold,
             html body a[href^="/user/"].hook-gold > *,
             html body a[href^="/user/"].hook-gold:hover {
-                color: #8a5a00 !important;
-                -webkit-text-fill-color: #8a5a00 !important;
+                background: linear-gradient(
+                    90deg,
+                    #b8860b 0%,
+                    #ffd700 25%,
+                    #b8860b 50%,
+                    #ffd700 75%,
+                    #b8860b 100%
+                ) !important;
+                background-size: 300% auto !important;
+                -webkit-background-clip: text !important;
+                background-clip: text !important;
+                -webkit-text-fill-color: transparent !important;
+                color: transparent !important;
                 font-weight: 800 !important;
-                animation: lg-hook-gold-pulse 2s ease-in-out infinite !important;
+                text-shadow: 0 0 1px rgba(139, 105, 20, 0.55) !important;
+                animation: lg-hook-gold-flow 3s linear infinite !important;
             }
 
-            /* ============ 关键帧：颜色 + 光晕同步呼吸 ============ */
-            @keyframes lg-hook-green-pulse {
-                0%, 100% {
-                    color: #0a7a35;
-                    -webkit-text-fill-color: #0a7a35;
-                    text-shadow:
-                        0 0 0 rgba(30, 220, 110, 0),
-                        0 0 0 rgba(30, 220, 110, 0);
-                }
-                50% {
-                    color: #1edc6e;
-                    -webkit-text-fill-color: #1edc6e;
-                    text-shadow:
-                        0 0 6px rgba(30, 220, 110, 0.95),
-                        0 0 14px rgba(30, 220, 110, 0.65),
-                        0 0 22px rgba(30, 220, 110, 0.35);
-                }
+            @keyframes lg-hook-green-flow {
+                0%   { background-position: 0% center; }
+                100% { background-position: 200% center; }
             }
-
-            @keyframes lg-hook-blue-pulse {
-                0%, 100% {
-                    color: #0a3d91;
-                    -webkit-text-fill-color: #0a3d91;
-                    text-shadow:
-                        0 0 0 rgba(64, 160, 255, 0),
-                        0 0 0 rgba(64, 160, 255, 0);
-                }
-                50% {
-                    color: #40a0ff;
-                    -webkit-text-fill-color: #40a0ff;
-                    text-shadow:
-                        0 0 6px rgba(64, 160, 255, 0.95),
-                        0 0 14px rgba(64, 160, 255, 0.65),
-                        0 0 24px rgba(64, 160, 255, 0.4),
-                        0 0 34px rgba(120, 200, 255, 0.2);
-                }
+            @keyframes lg-hook-blue-flow {
+                0%   { background-position: 0% center; }
+                100% { background-position: 200% center; }
             }
-
-            @keyframes lg-hook-gold-pulse {
-                0%, 100% {
-                    color: #8a5a00;
-                    -webkit-text-fill-color: #8a5a00;
-                    text-shadow:
-                        0 0 0 rgba(255, 200, 0, 0),
-                        0 0 0 rgba(255, 200, 0, 0);
-                }
-                50% {
-                    color: #ffc800;
-                    -webkit-text-fill-color: #ffc800;
-                    text-shadow:
-                        0 0 6px rgba(255, 200, 0, 1),
-                        0 0 14px rgba(255, 200, 0, 0.7),
-                        0 0 24px rgba(255, 200, 0, 0.45),
-                        0 0 36px rgba(255, 230, 120, 0.25);
-                }
+            @keyframes lg-hook-gold-flow {
+                0%   { background-position: 0% center; }
+                100% { background-position: 200% center; }
             }
         `;
 
