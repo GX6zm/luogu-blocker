@@ -1,18 +1,19 @@
 // ==UserScript==
 // @name         洛谷屏蔽讨论与题解（保留犇犇）
 // @namespace    https://github.com/GX6zm/luogu-blocker
-// @version      1.9
-// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面（保留犇犇）
+// @version      2.2
+// @description  屏蔽洛谷主页"最近讨论"、题目页"相关讨论"与算法标签，阻止访问题解页面，并按钩子等级染关注列表用户名（保留犇犇）
 // @author       GX6zm
 // @match        https://www.luogu.com.cn/*
-// @grant        none
+// @grant        GM_registerMenuCommand
 // @run-at       document-start
 // @homepageURL  https://github.com/GX6zm/luogu-blocker
 // @supportURL   https://github.com/GX6zm/luogu-blocker/issues
-// @updateURL    https://github.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
-// @downloadURL  https://github.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
+// @updateURL    https://raw.githubusercontent.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
+// @downloadURL  https://raw.githubusercontent.com/GX6zm/luogu-blocker/main/luogu-blocker.user.js
 // @license      MIT
 // ==/UserScript==
+
 (function() {
     'use strict';
 
@@ -192,17 +193,13 @@
         for (const el of starts) hideOneCard(el);
     }
 
-    // ========== 6. 关注列表按钩子等级染色 ==========
-    // 洛谷钩子的真实 DOM 结构（从源码确认）：
-    //   <a class="lg-fg-red lg-bold" href="/user/1236589">good163</a>
-    //   &nbsp;
-    //   <a class="sb_amazeui" href="/discuss/show/142324">
-    //       <svg fill="#5eb95e">...</svg>
-    //   </a>
-    // 颜色映射：
-    //   #5eb95e → 绿钩（1~5 级）
-    //   #3498db → 蓝钩（6~7 级）
-    //   #f1c40f / #f39c12 / 其他金黄色 → 金钩（8~10 级）
+    // ========== 6. 关注列表按钩子等级染色（基于 lentille-context JSON） ==========
+    // 洛谷关注列表页把数据直接嵌在 <script id="lentille-context"> 的 JSON 里，
+    // 每个用户对象都带 ccfLevel 字段：
+    //   0       → 无钩
+    //   1~5     → 绿钩
+    //   6~7     → 蓝钩
+    //   8~10    → 金钩
     function setupFollowingHookColors() {
         const RAINBOW_KEY = 'lg_hook_color_enabled';
         let enabled = localStorage.getItem(RAINBOW_KEY) !== '0';
@@ -272,72 +269,66 @@
             });
         }
 
-        // 颜色 → 等级
-        function colorToLevel(fill) {
-            if (!fill) return 0;
-            const c = fill.toLowerCase().trim();
-            if (c === '#5eb95e') return 3;                                  // 绿钩
-            if (c === '#3498db') return 6;                                  // 蓝钩
-            if (c === '#f1c40f' || c === '#f39c12' ||
-                c === '#ffd700' || c === '#fbc531' ||
-                c === '#e67e22' || c === '#ffc107') return 9;               // 金钩（多个候选）
-            return 0;
+        // 解析 lentille-context JSON，拿到 uid → ccfLevel 映射
+        function parseUidToCcfLevel() {
+            const script = document.getElementById('lentille-context');
+            if (!script) return null;
+            try {
+                const data = JSON.parse(script.textContent);
+                const users = data && data.data && data.data.users && data.data.users.result;
+                if (!Array.isArray(users)) return null;
+                const map = {};
+                users.forEach(function(u) {
+                    if (u && typeof u.uid !== 'undefined') {
+                        map[String(u.uid)] = u.ccfLevel || 0;
+                    }
+                });
+                return map;
+            } catch (e) {
+                return null;
+            }
         }
 
-        // 从用户名链接读取钩子等级
-        function getHookLevel(userLinkEl) {
-            // A. 看兄弟节点中是否有 <a class="sb_amazeui"> 里含 svg[fill]
-            let sib = userLinkEl.nextElementSibling;
-            let hops = 0;
-            while (sib && hops < 4) {
-                if (sib.tagName === 'A' && sib.classList.contains('sb_amazeui')) {
-                    const svg = sib.querySelector('svg[fill]');
-                    if (svg) return colorToLevel(svg.getAttribute('fill'));
-                }
-                sib = sib.nextElementSibling;
-                hops++;
-            }
-
-            // B. 在当前元素的父级范围内找任意 sb_amazeui（兜底）
-            let scope = userLinkEl.parentElement;
-            let depth = 0;
-            while (scope && scope !== document.body && depth < 3) {
-                const hookA = scope.querySelector('a.sb_amazeui svg[fill]');
-                if (hookA) return colorToLevel(hookA.getAttribute('fill'));
-                scope = scope.parentElement;
-                depth++;
-            }
-
-            return 0;
-        }
-
-        function applyHookClass(userLinkEl) {
-            if (userLinkEl.dataset.lgHookDone) return;
-            userLinkEl.dataset.lgHookDone = '1';
-            const level = getHookLevel(userLinkEl);
-            if (level >= 8)      userLinkEl.classList.add('hook-gold');
-            else if (level >= 6) userLinkEl.classList.add('hook-blue');
-            else if (level >= 1) userLinkEl.classList.add('hook-green');
+        function levelToClass(level) {
+            if (level >= 8) return 'hook-gold';
+            if (level >= 6) return 'hook-blue';
+            if (level >= 1) return 'hook-green';
+            return null;
         }
 
         function runHookColors() {
             // 只在关注列表页执行
             if (!/\/user\/[^/]+\/(following|follow)/.test(window.location.pathname)) return;
             if (!enabled) return;
+
             injectHookStyle();
-            document.querySelectorAll('a[href^="/user/"]').forEach(applyHookClass);
+
+            const uidMap = parseUidToCcfLevel();
+            if (!uidMap) return;
+
+            document.querySelectorAll('a[href^="/user/"]').forEach(function(a) {
+                const m = (a.getAttribute('href') || '').match(/^\/user\/(\d+)/);
+                if (!m) return;
+                const uid = m[1];
+                if (!(uid in uidMap)) return;
+
+                const cls = levelToClass(uidMap[uid]);
+                if (!cls) return; // 无钩，不加任何效果
+
+                if (a.classList.contains(cls)) return;
+                // 清掉旧的（翻页后同一元素可能被复用）
+                a.classList.remove('hook-green', 'hook-blue', 'hook-gold');
+                a.classList.add(cls);
+            });
         }
 
-        // 注册菜单开关
+        // 菜单开关
         if (typeof GM_registerMenuCommand === 'function') {
             GM_registerMenuCommand('切换：关注列表钩子染色', function() {
                 enabled = !enabled;
                 localStorage.setItem(RAINBOW_KEY, enabled ? '1' : '0');
                 if (enabled) {
                     injectHookStyle();
-                    document.querySelectorAll('a[href^="/user/"]').forEach(function(el) {
-                        delete el.dataset.lgHookDone;
-                    });
                     runHookColors();
                 } else {
                     removeHookStyle();
@@ -345,7 +336,7 @@
             });
         }
 
-        // 首次执行 + 监听动态加载
+        // 首次执行 + 监听
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', runHookColors);
         } else {
