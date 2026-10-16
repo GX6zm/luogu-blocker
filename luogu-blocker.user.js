@@ -193,6 +193,16 @@
     }
 
     // ========== 6. 关注列表按钩子等级染色 ==========
+    // 洛谷钩子的真实 DOM 结构（从源码确认）：
+    //   <a class="lg-fg-red lg-bold" href="/user/1236589">good163</a>
+    //   &nbsp;
+    //   <a class="sb_amazeui" href="/discuss/show/142324">
+    //       <svg fill="#5eb95e">...</svg>
+    //   </a>
+    // 颜色映射：
+    //   #5eb95e → 绿钩（1~5 级）
+    //   #3498db → 蓝钩（6~7 级）
+    //   #f1c40f / #f39c12 / 其他金黄色 → 金钩（8~10 级）
     function setupFollowingHookColors() {
         const RAINBOW_KEY = 'lg_hook_color_enabled';
         let enabled = localStorage.getItem(RAINBOW_KEY) !== '0';
@@ -256,40 +266,48 @@
         function removeHookStyle() {
             const s = document.getElementById('lg-hook-color-style');
             if (s) s.remove();
-            // 清除所有已加的 class
             document.querySelectorAll('a.hook-green, a.hook-blue, a.hook-gold').forEach(function(el) {
                 el.classList.remove('hook-green', 'hook-blue', 'hook-gold');
                 delete el.dataset.lgHookDone;
             });
         }
 
-        // 读取单个用户的钩子等级
-        function getHookLevel(userLinkEl) {
-            let card = userLinkEl.closest('[class*="user"], [class*="card"], li, tr');
-            if (!card) card = userLinkEl.parentElement;
+        // 颜色 → 等级
+        function colorToLevel(fill) {
+            if (!fill) return 0;
+            const c = fill.toLowerCase().trim();
+            if (c === '#5eb95e') return 3;                                  // 绿钩
+            if (c === '#3498db') return 6;                                  // 蓝钩
+            if (c === '#f1c40f' || c === '#f39c12' ||
+                c === '#ffd700' || c === '#fbc531' ||
+                c === '#e67e22' || c === '#ffc107') return 9;               // 金钩（多个候选）
+            return 0;
+        }
 
-            // A. data 属性
-            const dataEl = card.querySelector('[data-level]');
-            if (dataEl && dataEl.dataset && dataEl.dataset.level) {
-                const v = parseInt(dataEl.dataset.level, 10);
-                if (!isNaN(v)) return v;
+        // 从用户名链接读取钩子等级
+        function getHookLevel(userLinkEl) {
+            // A. 看兄弟节点中是否有 <a class="sb_amazeui"> 里含 svg[fill]
+            let sib = userLinkEl.nextElementSibling;
+            let hops = 0;
+            while (sib && hops < 4) {
+                if (sib.tagName === 'A' && sib.classList.contains('sb_amazeui')) {
+                    const svg = sib.querySelector('svg[fill]');
+                    if (svg) return colorToLevel(svg.getAttribute('fill'));
+                }
+                sib = sib.nextElementSibling;
+                hops++;
             }
-            // B. class 名含 hook / level
-            const hookEl = card.querySelector('[class*="hook"], [class*="level"]');
-            if (hookEl) {
-                const cls = hookEl.className || '';
-                if (/green|绿/i.test(cls)) return 3;
-                if (/blue|蓝/i.test(cls))  return 6;
-                if (/gold|金/i.test(cls))  return 9;
+
+            // B. 在当前元素的父级范围内找任意 sb_amazeui（兜底）
+            let scope = userLinkEl.parentElement;
+            let depth = 0;
+            while (scope && scope !== document.body && depth < 3) {
+                const hookA = scope.querySelector('a.sb_amazeui svg[fill]');
+                if (hookA) return colorToLevel(hookA.getAttribute('fill'));
+                scope = scope.parentElement;
+                depth++;
             }
-            // C. img alt 文本
-            const img = card.querySelector('img[alt*="钩"]');
-            if (img) {
-                const alt = img.alt || '';
-                if (/绿/.test(alt)) return 3;
-                if (/蓝/.test(alt)) return 6;
-                if (/金/.test(alt)) return 9;
-            }
+
             return 0;
         }
 
@@ -327,7 +345,7 @@
             });
         }
 
-        // 首次执行 + 监听
+        // 首次执行 + 监听动态加载
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', runHookColors);
         } else {
@@ -338,7 +356,6 @@
 
     // ========== 7. 统一调度 ==========
     function runAll() {
-        // 隐藏讨论链接（跳过犇犇）
         document.querySelectorAll('a[href*="/discuss"]').forEach(function(el) {
             if (el.href && el.href.includes('/benben')) return;
             el.style.display = 'none';
